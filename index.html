@@ -32,13 +32,18 @@
                {label: 'Revenue', value: 'revenue'},
              ]
           };
+          
+          function precise_round(num,decimals){
+            return Math.round(num*Math.pow(10,decimals))/Math.pow(10,decimals);
+          }
+          
           var stylePicker = $('#graphStyle').MPSelect(graphStyleOptions);
           var typePicker = $('#graphType').MPSelect(graphTypeOptions);
-
+          var purchEvent =  'In-App Purchase'
           var revParams = {
-            event: 'Purchased Item',
-            inner: 'properties["price"]',
-            outer: 'properties["product_name"]',
+            event: purchEvent,
+            inner: 'properties["amount"]',
+            outer: 'properties["Item Purchased"]',
             action: 'sum',
             unit: 'day',
             limit: 255,
@@ -49,6 +54,7 @@
           var totalsParams = {
             unit: 'day'
           }
+          
           var dateRange = dateSelect.MPDatepicker('value');
           $.extend(revParams, dateRange);
           $.extend(totalsParams, dateRange);
@@ -58,11 +64,11 @@
             var revenue = {};
             // Lets make requests
             var $revenue = MP.api.query('api/2.0/segmentation/multiseg', revParams);
-            var $quantity = MP.api.segment('Purchased Item', 'product_name', totalsParams)
+            var $quantity = MP.api.segment(purchEvent, 'Item Purchased', totalsParams)
             // When requests are complete iterate through all keys and their dates
             $.when($revenue, $quantity).done(function(rev_obj, qty){
             rev = MP.Data.inst(rev_obj.data.values)
-            debugger
+            // debugger
             switch (stylePicker.MPSelect('value')){
               case 'line':
                 _.each(_.keys(qty.values()), function(prod){
@@ -72,15 +78,17 @@
                     _.each(_.keys(qty.values()[prod]), function(date){
                       if (data[prod]['Quantity']) {
                         data[prod]['Quantity'] += qty.values()[prod][date];
-                        data[prod]['Revenue'] += parseFloat(rev.values()[prod][date]);
+                        data[prod]['Revenue'] += precise_round(parseFloat(rev.values()[prod][date]), 2);
                       } else {
                         data[prod]['Quantity'] = qty.values()[prod][date];
-                        data[prod]['Revenue'] = parseFloat(rev.values()[prod][date]);
+                        data[prod]['Revenue'] = precise_round(parseFloat(rev.values()[prod][date]), 2);
                       }
                       quantity[prod][date] =  qty.values()[prod][date];
-                      revenue[prod][date] = parseFloat(rev.values()[prod][date]);
+                      revenue[prod][date] = precise_round(parseFloat(rev.values()[prod][date]), 2);
                     });
-                    data[prod]['Average'] = data[prod]['Revenue'] / data[prod]['Quantity'];
+                    var revAmt = precise_round(data[prod]['Revenue'],2)
+                    data[prod]['Average'] = precise_round( revAmt/ data[prod]['Quantity'], 2);
+                    data[prod]['Revenue'] = revAmt
                   });
                 break;
               case 'bar':
