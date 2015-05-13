@@ -1,15 +1,112 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
-    <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="https://cdn.mxpnl.com/libs/mixpanel-platform/css/reset.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.css">
     <script src="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.js"></script>
   </head>
   <body class="mixpanel-platform-body">
-    <h1>Hello, World!</h1>
+  <div class="mixpanel-platform-section">
+      <div id="dateSelect" style="float: left;"></div>
+      <div id="graphType" style="float: left;"></div>
+      <div id="graphStyle" style="float: left;"></div>
+      <div style="clear: both;"></div>
+      <div id="graph"></div>
+    </div>
+    <div id="table"></div>
     <script>
-      // Run queries and display results here
+      MP.api.ready(function() {
+          var dateSelect  = $('#dateSelect').MPDatepicker();
+
+          var graphStyleOptions = {
+             items: [
+               {label: 'Line', value: 'line'},
+               {label: 'Bar', value: 'bar'},
+               {label: 'Pie', value: 'pie'}
+             ]
+          };
+
+          var graphTypeOptions = {
+             items: [
+               {label: 'Quantity', value: 'quantity'},
+               {label: 'Revenue', value: 'revenue'},
+             ]
+          };
+          var stylePicker = $('#graphStyle').MPSelect(graphStyleOptions);
+          var typePicker = $('#graphType').MPSelect(graphTypeOptions);
+
+          var revParams = {
+            event: 'Purchased Item',
+            inner: 'properties["price"]',
+            outer: 'properties["product_name"]',
+            action: 'sum',
+            unit: 'day',
+            limit: 255,
+            type: 'general',
+          };
+
+
+          var totalsParams = {
+            unit: 'day'
+          }
+          var dateRange = dateSelect.MPDatepicker('value');
+          $.extend(revParams, dateRange);
+          $.extend(totalsParams, dateRange);
+          function runQuery() {
+            var data = {};
+            var quantity = {};
+            var revenue = {};
+            // Lets make requests
+            var $revenue = MP.api.query('api/2.0/segmentation/multiseg', revParams);
+            var $quantity = MP.api.segment('Purchased Item', 'product_name', totalsParams)
+            // When requests are complete iterate through all keys and their dates
+            $.when($revenue, $quantity).done(function(rev_obj, qty){
+            rev = MP.Data.inst(rev_obj.data.values)
+            debugger
+            switch (stylePicker.MPSelect('value')){
+              case 'line':
+                _.each(_.keys(qty.values()), function(prod){
+                    data[prod] = {}
+                    quantity[prod] = {}
+                    revenue[prod] = {}
+                    _.each(_.keys(qty.values()[prod]), function(date){
+                      if (data[prod]['Quantity']) {
+                        data[prod]['Quantity'] += qty.values()[prod][date];
+                        data[prod]['Revenue'] += parseFloat(rev.values()[prod][date]);
+                      } else {
+                        data[prod]['Quantity'] = qty.values()[prod][date];
+                        data[prod]['Revenue'] = parseFloat(rev.values()[prod][date]);
+                      }
+                      quantity[prod][date] =  qty.values()[prod][date];
+                      revenue[prod][date] = parseFloat(rev.values()[prod][date]);
+                    });
+                    data[prod]['Average'] = data[prod]['Revenue'] / data[prod]['Quantity'];
+                  });
+                break;
+              case 'bar':
+              case 'pie':
+                quantity = qty.sum().values()
+                revenue = rev.sum().values()
+                break;
+              default:
+                console.log('Make a new selection')
+            }
+              console.log(data)
+              console.log(quantity)
+              console.log(revenue)
+            // Chart it
+            var chart = $('#graph').MPChart({chartType: stylePicker.MPSelect('value')});
+            chart.MPChart('setData', quantity)
+            var table = $('#table').MPTable({ firstColHeader: 'Product Name'})
+            table.MPTable('setData', data)
+            });
+          };
+
+          dateSelect.on('change', runQuery)
+          stylePicker.on('change', runQuery)
+          typePicker.on('change', runQuery)
+          runQuery();
+        });
     </script>
   </body>
 </html>
