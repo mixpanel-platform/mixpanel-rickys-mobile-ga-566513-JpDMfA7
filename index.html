@@ -55,10 +55,11 @@
             unit: 'day'
           }
           
-          var dateRange = dateSelect.MPDatepicker('value');
-          $.extend(revParams, dateRange);
-          $.extend(totalsParams, dateRange);
+
           function runQuery() {
+            var dateRange = dateSelect.MPDatepicker('value');
+            $.extend(revParams, dateRange);
+            $.extend(totalsParams, dateRange);
             debugger
             var data = {};
             var quantity = {};
