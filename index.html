@@ -7,12 +7,12 @@
   </head>
   <body class="mixpanel-platform-body">
   <div class="mixpanel-platform-section">
-      <div id="dateSelect" style="float: left;"></div>
-      <div id="graphType" style="float: left;"></div>
-      <div id="graphStyle" style="float: left;"></div>
-      <div style="clear: both;"></div>
-      <div id="graph"></div>
-    </div>
+    <div id="dateSelect" style="float: left;"></div>
+    <div id="graphType" style="float: left;"></div>
+    <div id="graphStyle" style="float: left;"></div>
+    <div style="clear: both;"></div>
+    <div id="graph"></div>
+  </div>
     <div id="table"></div>
     <script>
       MP.api.ready(function() {
@@ -57,6 +57,7 @@
           
 
           function runQuery() {
+            $('#graph').empty()
             var dateRange = dateSelect.MPDatepicker('value');
             $.extend(revParams, dateRange);
             $.extend(totalsParams, dateRange);
@@ -94,18 +95,35 @@
                 break;
               case 'bar':
               case 'pie':
+                _.each(_.keys(qty.values()), function(prod){
+                    data[prod] = {}
+                    _.each(_.keys(qty.values()[prod]), function(date){
+                      if (data[prod]['Quantity']) {
+                        data[prod]['Quantity'] += qty.values()[prod][date];
+                        data[prod]['Revenue'] += precise_round(parseFloat(rev.values()[prod][date]), 2);
+                      } else {
+                        data[prod]['Quantity'] = qty.values()[prod][date];
+                        data[prod]['Revenue'] = precise_round(parseFloat(rev.values()[prod][date]), 2);
+                      }
+                    });
+                    var revAmt = precise_round(data[prod]['Revenue'],2)
+                    data[prod]['Average'] = precise_round( revAmt / data[prod]['Quantity'], 2);
+                    data[prod]['Revenue'] = revAmt
+                  });
                 quantity = qty.sum().values()
                 revenue = rev.sum().values()
                 break;
               default:
-                console.log('Make a new selection')
+                alert('Make a new selection')
             }
-              console.log(data)
-              console.log(quantity)
-              console.log(revenue)
+            window.quantity = quantity
+            window.revenue = revenue
+            console.log(quantity)
+            console.log(stylePicker.MPSelect('value'))
             // Chart it
-            var chart = $('#graph').MPChart({chartType: stylePicker.MPSelect('value')});
-            chart.MPChart('setData', quantity)
+
+            var chart = $('#graph').MPChart({chartType: String(stylePicker.MPSelect('value'))});
+            chart.MPChart('setData', window[typePicker.MPSelect('value')])
             var table = $('#table').MPTable({ firstColHeader: 'Product Name'})
             table.MPTable('setData', data)
             });
